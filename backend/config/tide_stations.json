@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Noosa Heads",
+    "apiUrl": "https://www.data.qld.gov.au/dataset/noosa-head-tide-gauge-predicted-interval-data/resource/1542ee15-6f50-414f-bc15-66732f1f7eae",
+    "latitude": -26.389,
+    "longitude": 153.09
+  },
+  {
+    "name": "Mooloolaba",
+    "apiUrl": "https://www.data.qld.gov.au/dataset/mooloolaba-tide-gauge-predicted-interval-data/resource/b0b2fb21-4fdc-4446-8423-114af3e07de4",
+    "latitude": -26.684,
+    "longitude": 153.12
+  }
+]

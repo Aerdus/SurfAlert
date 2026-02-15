@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2019",
+    "esModuleInterop": true,
+    "strict": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "typeRoots": ["./node_modules/@types", "./generated/prisma"]
+  },
+  "include": ["src/scripts/**/*", "generated/prisma/**/*"]
+}

@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Surf Alert - Tide Data</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      header {
+        text-align: center;
+        color: white;
+        margin-bottom: 30px;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .stat-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+      }
+
+      .controls {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      label {
+        font-weight: 600;
+        color: #333;
+      }
+
+      select,
+      button {
+        padding: 10px 15px;
+        border: 2px solid #667eea;
+        border-radius: 6px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      select {
+        min-width: 250px;
+        background: white;
+      }
+
+      button {
+        background: #667eea;
+        color: white;
+        border: none;
+        font-weight: 600;
+      }
+
+      button:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #667eea;
+        font-size: 1.2rem;
+      }
+
+      .error {
+        background: #fee;
+        border: 2px solid #fcc;
+        color: #c33;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+      }
+
+      th {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+      }
+
+      tbody tr:hover {
+        background: #f8f9ff;
+      }
+
+      .tide-value {
+        font-weight: 600;
+        color: #667eea;
+      }
+
+      .no-data {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🌊 Surf Alert</h1>
+        <p class="subtitle">Queensland Maritime Tide Predictions</p>
+      </header>
+
+      <!-- Stats Section -->
+      <div class="card">
+        <h2 style="margin-bottom: 15px; color: #333">Database Statistics</h2>
+        <div class="stats-grid" id="statsGrid">
+          <div class="loading">Loading stats...</div>
+        </div>
+      </div>
+
+      <!-- Tide Data Section -->
+      <div class="card">
+        <h2 style="margin-bottom: 15px; color: #333">Tide Data</h2>
+
+        <!-- Controls -->
+        <div class="controls">
+          <label for="stationSelect">Filter by Station:</label>
+          <select id="stationSelect">
+            <option value="">Loading stations...</option>
+          </select>
+          <button onclick="loadTideData()">Refresh Data</button>
+          <button
+            onclick="fetchTideData()"
+            id="fetchBtn"
+            style="background: #ff6b6b"
+          >
+            Fetch Latest Data
+          </button>
+        </div>
+
+        <!-- Error Display -->
+        <div id="errorMessage" class="error" style="display: none"></div>
+
+        <!--Fetch Status Display-->
+        <div
+          id="fetchStatus"
+          style="
+            display: none;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+          "
+        ></div>
+        <!-- Data Table -->
+        <div id="tableContainer">
+          <div class="loading">Loading tide data...</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // API Base URL
+      const API_BASE = "http://localhost:3001/api";
+
+      // State
+      let stations = [];
+      let tideData = [];
+
+      // Initialize on page load
+      window.addEventListener("DOMContentLoaded", async () => {
+        await loadStats();
+        await loadStations();
+      });
+
+      // Load database statistics
+      async function loadStats() {
+        try {
+          const response = await fetch(`${API_BASE}/stats`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          const stats = await response.json();
+
+          document.getElementById("statsGrid").innerHTML = `
+                    <div class="stat-box">
+                        <div class="stat-value">${stats.totalStations}</div>
+                        <div class="stat-label">Total Stations</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${stats.totalReadings.toLocaleString()}</div>
+                        <div class="stat-label">Total Readings</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${new Date(stats.oldestReading).toLocaleDateString()}</div>
+                        <div class="stat-label">Oldest Reading</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${new Date(stats.newestReading).toLocaleDateString()}</div>
+                        <div class="stat-label">Newest Reading</div>
+                    </div>
+                `;
+        } catch (error) {
+          console.error("Error loading stats:", error);
+          document.getElementById("statsGrid").innerHTML = `
+                    <div class="error">Failed to load statistics. Is the backend running?</div>
+                `;
+        }
+      }
+
+      // Load stations into dropdown
+      async function loadStations() {
+        try {
+          const response = await fetch(`${API_BASE}/stations`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          stations = await response.json();
+
+          const select = document.getElementById("stationSelect");
+          select.innerHTML = `
+                    <option value="">All Stations (${stations.length})</option>
+                    ${stations
+                      .map(
+                        (s) => `
+                        <option value="${s.id}">${s.name}</option>
+                    `,
+                      )
+                      .join("")}
+                `;
+
+          // Load initial tide data (all stations)
+          await loadTideData();
+        } catch (error) {
+          console.error("Error loading stations:", error);
+          showError(
+            "Failed to load stations. Is the backend running on port 3001?",
+          );
+        }
+      }
+
+      // Load tide data with optional station filter
+      async function loadTideData() {
+        const stationId = document.getElementById("stationSelect").value;
+        hideError();
+
+        try {
+          let url = `${API_BASE}/stations`;
+
+          if (stationId) {
+            // Load readings for specific station
+            url = `${API_BASE}/stations/${stationId}/tide-readings`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            tideData = await response.json();
+          } else {
+            // Load all stations with their readings
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const stationsData = await response.json();
+
+            // Flatten all readings from all stations
+            tideData = stationsData.flatMap(
+              (station) => station.tideReadings || [],
+            );
+          }
+
+          renderTable();
+        } catch (error) {
+          console.error("Error loading tide data:", error);
+          showError("Failed to load tide data. Check console for details.");
+        }
+      }
+
+      // Render tide data table
+      function renderTable() {
+        const container = document.getElementById("tableContainer");
+
+        if (tideData.length === 0) {
+          container.innerHTML =
+            '<div class="no-data">No tide data found. Try running the fetch script!</div>';
+          return;
+        }
+
+        // Sort by timestamp (newest first)
+        const sortedData = [...tideData].sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
+        );
+
+        container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Station ID</th>
+                            <th>Date & Time (AEST)</th>
+                            <th>Tide Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedData
+                          .map((reading) => {
+                            // Convert UTC to AEST (UTC+10)
+                            const utcDate = new Date(reading.timestamp);
+                            const aestDate = new Date(
+                              utcDate.getTime() + 10 * 60 * 60 * 1000,
+                            );
+
+                            return `
+                                <tr>
+                                    <td>${reading.stationId}</td>
+                                    <td>${formatDateTimeAEST(aestDate)}</td>
+                                    <td class="tide-value">${reading.tide.toFixed(2)}m</td>
+                                </tr>
+                            `;
+                          })
+                          .join("")}
+                    </tbody>
+                </table>
+                <p style="margin-top: 15px; color: #666; font-size: 0.9rem;">
+                    Showing ${sortedData.length.toLocaleString()} readings
+                </p>
+            `;
+      }
+
+      // Format date/time in AEST
+      function formatDateTimeAEST(date) {
+        const options = {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        };
+        return date.toLocaleString("en-AU", options);
+      }
+
+      // Error handling
+      function showError(message) {
+        const errorDiv = document.getElementById("errorMessage");
+        errorDiv.textContent = message;
+        errorDiv.style.display = "block";
+      }
+
+      function hideError() {
+        document.getElementById("errorMessage").style.display = "none";
+      }
+      // Fetch tide data from API
+      async function fetchTideData() {
+        const fetchBtn = document.getElementById("fetchBtn");
+        const statusDiv = document.getElementById("fetchStatus");
+
+        // Disable button and show loading
+        fetchBtn.disabled = true;
+        fetchBtn.textContent = "⏳ Fetching...";
+        statusDiv.style.display = "block";
+        statusDiv.style.background = "#e3f2fd";
+        statusDiv.style.color = "#1976d2";
+        statusDiv.innerHTML =
+          "🔄 Fetching tide data for all stations... This may take a minute.";
+
+        try {
+          const response = await fetch(`${API_BASE}/fetch/tide`, {
+            method: "POST",
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Success!
+            statusDiv.style.background = "#e8f5e9";
+            statusDiv.style.color = "#2e7d32";
+            statusDiv.innerHTML = `
+        ✅ <strong>Fetch Complete!</strong><br>
+        Deleted: ${result.stats.deleted} old readings<br>
+        Inserted: ${result.stats.inserted} new readings<br>
+        Updated: ${result.stats.updated} existing readings<br>
+        Total processed: ${result.stats.totalProcessed}
+      `;
+
+            // Reload the data to show new readings
+            await loadStats();
+            await loadTideData();
+          } else {
+            // Error from API
+            statusDiv.style.background = "#ffebee";
+            statusDiv.style.color = "#c62828";
+            statusDiv.innerHTML = `❌ <strong>Fetch Failed:</strong> ${result.error || result.message}`;
+          }
+        } catch (error) {
+          console.error("Error fetching tide data:", error);
+          statusDiv.style.background = "#ffebee";
+          statusDiv.style.color = "#c62828";
+          statusDiv.innerHTML = `❌ <strong>Network Error:</strong> Could not connect to server.`;
+        } finally {
+          // Re-enable button
+          fetchBtn.disabled = false;
+          fetchBtn.textContent = "🌊 Fetch Tide Data";
+        }
+      }
+    </script>
+  </body>
+</html>
